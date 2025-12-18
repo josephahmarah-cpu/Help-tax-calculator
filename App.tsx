@@ -6,9 +6,15 @@ import TaxForm from './components/TaxForm';
 import ResultDisplay from './components/ResultDisplay';
 import TaxAssistantChat from './components/TaxAssistantChat';
 import HistoryTracker from './components/HistoryTracker';
+import Login from './components/Login';
 import { EDUCATIONAL_TIPS } from './constants';
 
+type AppTab = 'calculator' | 'history' | 'assistant';
+
 const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<AppTab>('calculator');
   const [inputs, setInputs] = useState<TaxInputs>({
     monthlyGrossIncome: 250000,
     otherIncome: 0,
@@ -21,8 +27,15 @@ const App: React.FC = () => {
 
   const [history, setHistory] = useState<TaxHistoryRecord[]>([]);
 
-  // Load history from localStorage on mount
   useEffect(() => {
+    // Check for existing session
+    const session = localStorage.getItem('naijatax_session');
+    if (session) {
+      const data = JSON.parse(session);
+      setIsAuthenticated(true);
+      setUserEmail(data.email);
+    }
+
     const savedHistory = localStorage.getItem('naijatax_history');
     if (savedHistory) {
       try {
@@ -33,10 +46,11 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Sync history to localStorage
   useEffect(() => {
-    localStorage.setItem('naijatax_history', JSON.stringify(history));
-  }, [history]);
+    if (isAuthenticated) {
+      localStorage.setItem('naijatax_history', JSON.stringify(history));
+    }
+  }, [history, isAuthenticated]);
 
   const taxResult = useMemo(() => calculateTax(inputs), [inputs]);
 
@@ -52,12 +66,7 @@ const App: React.FC = () => {
       }
     };
     setHistory(prev => [newRecord, ...prev]);
-    
-    // Provide visual feedback by scrolling to the history section
-    const historyEl = document.getElementById('history-section');
-    if (historyEl) {
-      historyEl.scrollIntoView({ behavior: 'smooth' });
-    }
+    setActiveTab('history');
   };
 
   const handleDeleteHistoryItem = (id: string) => {
@@ -66,100 +75,151 @@ const App: React.FC = () => {
 
   const handleLoadHistoryInputs = (savedInputs: TaxInputs) => {
     setInputs(savedInputs);
+    setActiveTab('calculator');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleClearHistory = () => {
-    if (window.confirm("Are you sure you want to delete all saved calculations?")) {
+    if (window.confirm("Delete all saved calculations?")) {
       setHistory([]);
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('naijatax_session');
+    setIsAuthenticated(false);
+    setUserEmail('');
+  };
+
+  if (!isAuthenticated) {
+    return <Login onLoginSuccess={(email) => {
+      setIsAuthenticated(true);
+      setUserEmail(email);
+      localStorage.setItem('naijatax_session', JSON.stringify({ email }));
+    }} />;
+  }
+
   return (
-    <div className="min-h-screen pb-12">
-      {/* Header */}
-      <header className="bg-emerald-700 text-white py-12 shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-600 rounded-full -mr-20 -mt-20 opacity-50 blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-800 rounded-full -ml-10 -mb-10 opacity-50 blur-2xl"></div>
-        <div className="container mx-auto px-4 max-w-6xl relative z-10">
-          <div className="flex items-center gap-4 mb-3">
-            <span className="text-4xl">🇳🇬</span>
-            <h1 className="text-4xl font-extrabold tracking-tighter">NaijaTax</h1>
+    <div className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto md:max-w-6xl relative">
+      
+      {/* Top App Bar */}
+      <header className="bg-emerald-700 text-white p-4 sticky top-0 z-30 shadow-md">
+        <div className="container mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🇳🇬</span>
+            <h1 className="text-xl font-black tracking-tighter">NaijaTax</h1>
           </div>
-          <p className="text-emerald-100 max-w-2xl text-lg font-medium opacity-90 leading-relaxed">
-            A secure and professional tax planner for Nigerian professionals. 
-            Track your income history and stay ahead of your PAYE assessments.
-          </p>
+          <div className="flex items-center gap-3">
+            <div className="hidden md:block text-right">
+              <p className="text-[10px] font-bold uppercase opacity-60 leading-none">Logged in as</p>
+              <p className="text-xs font-semibold">{userEmail}</p>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="p-2 text-emerald-100 hover:text-white transition-colors"
+              title="Logout"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
+            <button 
+              onClick={() => setActiveTab('assistant')}
+              className="w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center hover:bg-emerald-500 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 max-w-6xl mt-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
-          {/* Left Column: Calculator Inputs & Education */}
-          <div className="lg:col-span-4 space-y-6">
-            <TaxForm inputs={inputs} setInputs={setInputs} />
-            
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-              <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                 <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                 Tax Education
-              </h3>
-              <div className="space-y-4">
-                {EDUCATIONAL_TIPS.map((tip, idx) => (
-                  <div key={idx} className="group cursor-help">
-                    <p className="text-sm font-semibold text-slate-700 group-hover:text-emerald-600 transition-colors">{tip.title}</p>
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">{tip.content}</p>
-                  </div>
-                ))}
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-y-auto pb-24 md:pb-12 pt-6 px-4">
+        {activeTab === 'calculator' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-300">
+            {/* Desktop Left: Form */}
+            <div className="lg:col-span-5 space-y-6">
+              <TaxForm inputs={inputs} setInputs={setInputs} />
+              
+              <div className="hidden md:block bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                   <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                   Tax Education
+                </h3>
+                <div className="space-y-4">
+                  {EDUCATIONAL_TIPS.map((tip, idx) => (
+                    <div key={idx}>
+                      <p className="text-sm font-semibold text-slate-700">{tip.title}</p>
+                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">{tip.content}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="bg-amber-50 border border-amber-100 p-5 rounded-xl">
-              <p className="text-xs text-amber-800 flex gap-3">
-                 <svg className="w-6 h-6 flex-shrink-0 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                 <span>
-                  <strong>Legal Disclaimer:</strong> This calculation is an estimate based on Nigerian PAYE principles and user inputs. It does not replace official tax assessment from FIRS or State Internal Revenue Services. Tax laws are subject to change.
-                 </span>
-              </p>
+            {/* Desktop Right: Results */}
+            <div className="lg:col-span-7">
+              <ResultDisplay result={taxResult} onSave={handleSaveCalculation} />
             </div>
           </div>
+        )}
 
-          {/* Right Column: Results & History & AI Assistant */}
-          <div className="lg:col-span-8 space-y-8">
-            <ResultDisplay result={taxResult} onSave={handleSaveCalculation} />
-            
-            <div id="history-section" className="scroll-mt-8">
-              <HistoryTracker 
-                history={history} 
-                onDelete={handleDeleteHistoryItem} 
-                onLoad={handleLoadHistoryInputs}
-                onClear={handleClearHistory}
-              />
-            </div>
-
-            <div className="mt-8">
-               <div className="flex items-center justify-between mb-4 px-2">
-                 <h2 className="text-2xl font-bold text-slate-800">Tax Expert Assistant</h2>
-                 <span className="flex items-center gap-2 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full uppercase tracking-wider">
-                   <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                   AI Powered
-                 </span>
-               </div>
-               <TaxAssistantChat />
-            </div>
+        {activeTab === 'history' && (
+          <div className="max-w-4xl mx-auto animate-in slide-in-from-right duration-300">
+            <HistoryTracker 
+              history={history} 
+              onDelete={handleDeleteHistoryItem} 
+              onLoad={handleLoadHistoryInputs}
+              onClear={handleClearHistory}
+            />
           </div>
-        </div>
+        )}
+
+        {activeTab === 'assistant' && (
+          <div className="max-w-2xl mx-auto animate-in slide-in-from-bottom duration-300">
+            <div className="flex items-center justify-between mb-4 px-2">
+              <h2 className="text-2xl font-bold text-slate-800">Tax Expert AI</h2>
+              <span className="flex items-center gap-2 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                Active
+              </span>
+            </div>
+            <TaxAssistantChat />
+          </div>
+        )}
       </main>
 
-      <footer className="mt-20 border-t border-slate-200 py-12 bg-white">
-        <div className="container mx-auto px-4 max-w-6xl text-center">
-          <div className="flex items-center justify-center gap-2 mb-4 text-emerald-700">
-            <span className="text-2xl">🇳🇬</span>
-            <span className="font-bold text-xl tracking-tighter">NaijaTax</span>
-          </div>
-          <p className="text-slate-500 text-sm">© {new Date().getFullYear()} NaijaTax Systems. Helping Nigerian professionals calculate with confidence.</p>
+      {/* Bottom Navigation Bar (Mobile) / Tab Switcher (Desktop) */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-2 pb-8 md:pb-2 z-40 max-w-md mx-auto md:max-w-6xl">
+        <div className="flex justify-around items-center h-12">
+          <button 
+            onClick={() => setActiveTab('calculator')}
+            className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'calculator' ? 'text-emerald-700' : 'text-slate-400'}`}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+            <span className="text-[10px] font-bold uppercase tracking-tighter">Calc</span>
+          </button>
+          
+          <button 
+            onClick={() => setActiveTab('history')}
+            className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'history' ? 'text-emerald-700' : 'text-slate-400'}`}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span className="text-[10px] font-bold uppercase tracking-tighter">History</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('assistant')}
+            className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'assistant' ? 'text-emerald-700' : 'text-slate-400'}`}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" /></svg>
+            <span className="text-[10px] font-bold uppercase tracking-tighter">AI Expert</span>
+          </button>
         </div>
+      </nav>
+
+      <footer className="hidden md:block py-6 bg-slate-100 text-center text-slate-400 text-[10px] font-medium uppercase tracking-[0.2em] mb-14">
+        NaijaTax © {new Date().getFullYear()} • Secure Personal Income Tax Planner
       </footer>
     </div>
   );

@@ -1,5 +1,5 @@
 {
-  "name": "Help tax calculator",
-  "description": "A professional tool for calculating Nigerian Personal Income Tax (PAYE) with accurate bands, relief allowances, and educational insights.",
+  "name": "NaijaTax App",
+  "description": "Professional Nigerian Personal Income Tax (PAYE) planner and AI expert.",
   "requestFramePermissions": []
 }

@@ -11,8 +11,8 @@ export const getGeminiResponse = async (history: ChatMessage[], message: string)
       { role: 'user', parts: [{ text: message }] }
     ],
     config: {
-      systemInstruction: "You are a Nigerian tax expert. Answer questions about Nigeria Personal Income Tax (PAYE), tax laws, and financial planning in Nigeria. Keep answers concise, helpful, and professional. Always include a disclaimer that this is for informational purposes and not official tax advice.",
-      temperature: 0.7,
+      systemInstruction: "You are a friendly, human-like Nigerian tax assistant. Keep your answers very brief—ideally 1 to 3 sentences max. Use natural, conversational language. Be direct and helpful. Always include a short, one-sentence disclaimer that this is for info only and not official tax advice.",
+      temperature: 0.8,
       topP: 0.95,
       topK: 40
     }
