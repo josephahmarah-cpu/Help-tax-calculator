@@ -14,6 +14,10 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, onSave }) => {
   const [isExporting, setIsExporting] = useState(false);
   const pdfRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * Professional currency formatter for Nigerian Naira (NGN)
+   * Using 'en-NG' locale, no decimal places as requested.
+   */
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
@@ -30,22 +34,18 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, onSave }) => {
     try {
       const element = pdfRef.current;
       
-      // We use html2canvas to take a snapshot of the result section
       const canvas = await html2canvas(element, {
-        scale: 2, // High resolution
+        scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
         onclone: (clonedDoc) => {
-          // You could manipulate the cloned document here if needed
           const el = clonedDoc.querySelector('.pdf-capture-area') as HTMLElement;
           if (el) el.style.padding = '40px';
         }
       });
       
       const imgData = canvas.toDataURL('image/png');
-      
-      // Calculate PDF dimensions (A4 size is ~595x842 px)
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'px',
@@ -53,12 +53,9 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, onSave }) => {
       });
       
       const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pageWidth - 40; // margin
+      const imgWidth = pageWidth - 40;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
-      // If the content is taller than the page, we might need multiple pages, 
-      // but for this summary, one page is usually enough or we scale it.
       pdf.addImage(imgData, 'PNG', 20, 20, imgWidth, imgHeight);
       pdf.save(`NaijaTax_Summary_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
@@ -114,7 +111,6 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, onSave }) => {
       </div>
 
       <div ref={pdfRef} className="space-y-6 p-6 rounded-2xl pdf-capture-area bg-white shadow-xl border border-slate-100">
-        {/* PDF Document Header (Always visible now for professional look) */}
         <div className="flex justify-between items-start border-b-2 border-emerald-500 pb-6 mb-2">
           <div>
             <div className="flex items-center gap-2 mb-1">
